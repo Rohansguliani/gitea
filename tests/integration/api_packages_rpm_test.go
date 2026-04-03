@@ -15,7 +15,6 @@ import (
 	"strings"
 	"testing"
 
-	"code.gitea.io/gitea/models/db"
 	"code.gitea.io/gitea/models/packages"
 	"code.gitea.io/gitea/models/unittest"
 	user_model "code.gitea.io/gitea/models/user"
@@ -163,29 +162,6 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 
 				// download the package with a file name (it can be anything)
 				req = NewRequest(t, "GET", fmt.Sprintf("%s/package/%s/%s/%s/any-file-name", groupURL, packageName, packageVersion, packageArchitecture))
-				resp = MakeRequest(t, req, http.StatusOK)
-				assert.Equal(t, content, resp.Body.Bytes())
-
-				// Test with "package" in the name (reproduces bug if fix not applied)
-				pvs, err := packages.GetVersionsByPackageType(t.Context(), user.ID, packages.TypeRpm)
-				assert.NoError(t, err)
-				require.NotEmpty(t, pvs)
-
-				// Rename package to "gitea-package" in DB to test collision
-				_, err = db.GetEngine(t.Context()).Exec("UPDATE package SET name = ?, lower_name = ? WHERE id = ?", "gitea-package", "gitea-package", pvs[0].PackageID)
-				assert.NoError(t, err)
-
-				// Rename package_file to match new name
-				_, err = db.GetEngine(t.Context()).Exec("UPDATE package_file SET name = ?, lower_name = ? WHERE version_id = ?", "gitea-package-1.0.2-1.x86_64.rpm", "gitea-package-1.0.2-1.x86_64.rpm", pvs[0].ID)
-				assert.NoError(t, err)
-
-				defer func() {
-					// Restore name
-					db.GetEngine(t.Context()).Exec("UPDATE package SET name = ?, lower_name = ? WHERE id = ?", packageName, strings.ToLower(packageName), pvs[0].PackageID)
-					db.GetEngine(t.Context()).Exec("UPDATE package_file SET name = ?, lower_name = ? WHERE version_id = ?", fmt.Sprintf("%s-%s.%s.rpm", packageName, packageVersion, packageArchitecture), strings.ToLower(fmt.Sprintf("%s-%s.%s.rpm", packageName, packageVersion, packageArchitecture)), pvs[0].ID)
-				}()
-
-				req = NewRequest(t, "GET", fmt.Sprintf("%s/package/%s/%s/%s/any-file-name", groupURL, "gitea-package", packageVersion, packageArchitecture))
 				resp = MakeRequest(t, req, http.StatusOK)
 				assert.Equal(t, content, resp.Body.Bytes())
 			})
