@@ -47,10 +47,10 @@ type Package struct {
 }
 
 type VersionMetadata struct {
-	License     string `json:"license,omitempty"`
-	ProjectURL  string `json:"project_url,omitempty"`
-	Summary     string `json:"summary,omitempty"`
-	Description string `json:"description,omitempty"`
+	License     string    `json:"license,omitempty"`
+	ProjectURL  string    `json:"project_url,omitempty"`
+	Summary     string    `json:"summary,omitempty"`
+	Description string    `json:"description,omitempty"`
 	Updates     []*Update `json:"updates,omitempty"`
 }
 
@@ -306,15 +306,15 @@ type UpdateInfo struct {
 }
 
 type Update struct {
-	From        string       `xml:"from,attr"`
-	Status      string       `xml:"status,attr"`
-	Type        string       `xml:"type,attr"`
-	Version     string       `xml:"version,attr"`
-	ID          string       `xml:"id"`
-	Title       string       `xml:"title"`
-	Severity    string       `xml:"severity"`
-	Description string       `xml:"description"`
-	References  []*Reference `xml:"references>reference"`
+	From        string        `xml:"from,attr"`
+	Status      string        `xml:"status,attr"`
+	Type        string        `xml:"type,attr"`
+	Version     string        `xml:"version,attr"`
+	ID          string        `xml:"id"`
+	Title       string        `xml:"title"`
+	Severity    string        `xml:"severity"`
+	Description string        `xml:"description"`
+	References  []*Reference  `xml:"references>reference"`
 	PkgList     []*Collection `xml:"pkglist>collection"`
 }
 
@@ -338,4 +338,3 @@ type UpdatePackage struct {
 	Version  string `xml:"version,attr"`
 	Filename string `xml:"filename"`
 }
-

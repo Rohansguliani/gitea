@@ -427,13 +427,13 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 				errataURL := fmt.Sprintf("%s/package/%s/%s/errata", groupURL, packageName, packageVersion)
 
 				advisory := rpm_module.Update{
-					From:    "security@example.com",
-					Status:  "stable",
-					Type:    "security",
-					Version: "1.0",
-					ID:      "CVE-2023-1234",
-					Title:   "Test Security Update",
-					Severity: "Important",
+					From:        "security@example.com",
+					Status:      "stable",
+					Type:        "security",
+					Version:     "1.0",
+					ID:          "CVE-2023-1234",
+					Title:       "Test Security Update",
+					Severity:    "Important",
 					Description: "This is a test security update.",
 					References: []*rpm_module.Reference{
 						{

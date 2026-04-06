@@ -586,7 +586,7 @@ func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs
 	}
 
 	if len(updates) == 0 {
-		return nil, nil
+		return nil, nil //nolint:nilnil
 	}
 
 	// Group updates by ID to merge package lists
