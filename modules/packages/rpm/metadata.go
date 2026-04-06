@@ -4,6 +4,7 @@
 package rpm
 
 import (
+	"encoding/xml"
 	"fmt"
 	"io"
 	"strings"
@@ -50,6 +51,7 @@ type VersionMetadata struct {
 	ProjectURL  string `json:"project_url,omitempty"`
 	Summary     string `json:"summary,omitempty"`
 	Description string `json:"description,omitempty"`
+	Updates     []*Update `json:"updates,omitempty"`
 }
 
 type FileMetadata struct {
@@ -296,3 +298,44 @@ func getChangelogs(h *rpmutils.RpmHeader) []*Changelog {
 	}
 	return changelogs
 }
+
+type UpdateInfo struct {
+	XMLName xml.Name  `xml:"updateinfo"`
+	Xmlns   string    `xml:"xmlns,attr"`
+	Updates []*Update `xml:"update"`
+}
+
+type Update struct {
+	From        string       `xml:"from,attr"`
+	Status      string       `xml:"status,attr"`
+	Type        string       `xml:"type,attr"`
+	Version     string       `xml:"version,attr"`
+	ID          string       `xml:"id"`
+	Title       string       `xml:"title"`
+	Severity    string       `xml:"severity"`
+	Description string       `xml:"description"`
+	References  []*Reference `xml:"references>reference"`
+	PkgList     []*Collection `xml:"pkglist>collection"`
+}
+
+type Reference struct {
+	Href  string `xml:"href,attr"`
+	ID    string `xml:"id,attr"`
+	Title string `xml:"title,attr"`
+	Type  string `xml:"type,attr"`
+}
+
+type Collection struct {
+	Short    string           `xml:"short,attr"`
+	Packages []*UpdatePackage `xml:"package"`
+}
+
+type UpdatePackage struct {
+	Arch     string `xml:"arch,attr"`
+	Name     string `xml:"name,attr"`
+	Release  string `xml:"release,attr"`
+	Src      string `xml:"src,attr"`
+	Version  string `xml:"version,attr"`
+	Filename string `xml:"filename"`
+}
+

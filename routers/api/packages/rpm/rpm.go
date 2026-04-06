@@ -316,3 +316,82 @@ func DeletePackageFile(webctx *context.Context) {
 
 	webctx.Status(http.StatusNoContent)
 }
+
+// UploadErrata handles uploading errata information for a package version
+func UploadErrata(ctx *context.Context) {
+	name := ctx.PathParam("name")
+	version := ctx.PathParam("version")
+	group := ctx.PathParam("group")
+
+	var updates []*rpm_module.Update
+	if err := json.NewDecoder(ctx.Req.Body).Decode(&updates); err != nil {
+		apiError(ctx, http.StatusBadRequest, err)
+		return
+	}
+
+	pv, err := packages_model.GetVersionByNameAndVersion(ctx,
+		ctx.Package.Owner.ID,
+		packages_model.TypeRpm,
+		name,
+		version,
+	)
+	if err != nil {
+		if errors.Is(err, util.ErrNotExist) {
+			apiError(ctx, http.StatusNotFound, err)
+		} else {
+			apiError(ctx, http.StatusInternalServerError, err)
+		}
+		return
+	}
+
+	var vm *rpm_module.VersionMetadata
+	if pv.MetadataJSON != "" {
+		if err := json.Unmarshal([]byte(pv.MetadataJSON), &vm); err != nil {
+			apiError(ctx, http.StatusInternalServerError, err)
+			return
+		}
+	} else {
+		vm = &rpm_module.VersionMetadata{}
+	}
+
+	for _, u := range updates {
+		found := false
+		for i, existing := range vm.Updates {
+			if existing.ID == u.ID {
+				vm.Updates[i].PkgList = append(vm.Updates[i].PkgList, u.PkgList...)
+				vm.Updates[i].From = u.From
+				vm.Updates[i].Status = u.Status
+				vm.Updates[i].Type = u.Type
+				vm.Updates[i].Version = u.Version
+				vm.Updates[i].Title = u.Title
+				vm.Updates[i].Severity = u.Severity
+				vm.Updates[i].Description = u.Description
+				vm.Updates[i].References = u.References
+				found = true
+				break
+			}
+		}
+		if !found {
+			vm.Updates = append(vm.Updates, u)
+		}
+	}
+
+	vmBytes, err := json.Marshal(vm)
+	if err != nil {
+		apiError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	pv.MetadataJSON = string(vmBytes)
+	if err := packages_model.UpdateVersion(ctx, pv); err != nil {
+		apiError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := rpm_service.BuildSpecificRepositoryFiles(ctx, ctx.Package.Owner.ID, group); err != nil {
+		apiError(ctx, http.StatusInternalServerError, err)
+		return
+	}
+
+	ctx.Status(http.StatusOK)
+}

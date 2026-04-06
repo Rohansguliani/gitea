@@ -240,16 +240,25 @@ func BuildSpecificRepositoryFiles(ctx context.Context, ownerID int64, group stri
 	if err != nil {
 		return err
 	}
+	updateinfo, err := buildUpdateInfo(ctx, pv, pfs, cache, group)
+	if err != nil {
+		return err
+	}
+
+	data := []*repoData{
+		primary,
+		filelists,
+		other,
+	}
+	if updateinfo != nil {
+		data = append(data, updateinfo)
+	}
 
 	return buildRepomd(
 		ctx,
 		pv,
 		ownerID,
-		[]*repoData{
-			primary,
-			filelists,
-			other,
-		},
+		data,
 		group,
 	)
 }
@@ -560,6 +569,46 @@ func buildOther(ctx context.Context, pv *packages_model.PackageVersion, pfs []*p
 		Xmlns:        "http://linux.duke.edu/metadata/other",
 		PackageCount: len(pfs),
 		Packages:     packages,
+	}, group)
+}
+
+// buildUpdateInfo builds the updateinfo.xml file
+func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs []*packages_model.PackageFile, c packageCache, group string) (*repoData, error) {
+	var updates []*rpm_module.Update
+	for _, pf := range pfs {
+		pd := c[pf]
+		if pd.VersionMetadata.Updates != nil {
+			updates = append(updates, pd.VersionMetadata.Updates...)
+		}
+	}
+
+	if len(updates) == 0 {
+		return nil, nil
+	}
+
+	// Group updates by ID to merge package lists
+	type updateKey struct {
+		ID string
+	}
+	updateMap := make(map[updateKey]*rpm_module.Update)
+
+	for _, u := range updates {
+		key := updateKey{ID: u.ID}
+		if existing, ok := updateMap[key]; ok {
+			existing.PkgList = append(existing.PkgList, u.PkgList...)
+		} else {
+			updateMap[key] = u
+		}
+	}
+
+	var mergedUpdates []*rpm_module.Update
+	for _, u := range updateMap {
+		mergedUpdates = append(mergedUpdates, u)
+	}
+
+	return addDataAsFileToRepo(ctx, pv, "updateinfo", &rpm_module.UpdateInfo{
+		Xmlns:   "http://linux.duke.edu/metadata/updateinfo",
+		Updates: mergedUpdates,
 	}, group)
 }
 
