@@ -575,10 +575,13 @@ func buildOther(ctx context.Context, pv *packages_model.PackageVersion, pfs []*p
 // buildUpdateInfo builds the updateinfo.xml file
 func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs []*packages_model.PackageFile, c packageCache, group string) (*repoData, error) {
 	var updates []*rpm_module.Update
+	seenVersions := make(map[int64]bool)
+
 	for _, pf := range pfs {
 		pd := c[pf]
-		if pd.VersionMetadata.Updates != nil {
+		if pd.Version != nil && !seenVersions[pd.Version.ID] && pd.VersionMetadata.Updates != nil {
 			updates = append(updates, pd.VersionMetadata.Updates...)
+			seenVersions[pd.Version.ID] = true
 		}
 	}
 
@@ -597,7 +600,11 @@ func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs
 		if existing, ok := updateMap[key]; ok {
 			existing.PkgList = append(existing.PkgList, u.PkgList...)
 		} else {
-			updateMap[key] = u
+			// Create a shallow copy so we don't mutate the original cached pointer
+			uCopy := *u
+			// We also need to copy the slice so append doesn't overwrite the original backing array
+			uCopy.PkgList = append([]*rpm_module.Collection(nil), u.PkgList...)
+			updateMap[key] = &uCopy
 		}
 	}
 

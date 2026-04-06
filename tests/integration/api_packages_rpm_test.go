@@ -544,9 +544,39 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 
 					assert.Len(t, result.Updates, 1)
 					assert.Equal(t, "CVE-2023-1234", result.Updates[0].ID)
-					// Verify that package lists are merged (total 2 collections)
-					assert.Len(t, result.Updates[0].PkgList, 2)
-					assert.Equal(t, "another-package", result.Updates[0].PkgList[1].Packages[0].Name)
+					// Verify that package lists are merged into the same collection
+					assert.Len(t, result.Updates[0].PkgList, 1)
+					assert.Len(t, result.Updates[0].PkgList[0].Packages, 2)
+					assert.Equal(t, "another-package", result.Updates[0].PkgList[0].Packages[1].Name)
+				})
+
+				t.Run("Idempotency", func(t *testing.T) {
+					defer tests.PrintCurrentTest(t)()
+
+					updates := []*rpm_module.Update{&advisory}
+					body, err := json.Marshal(updates)
+					assert.NoError(t, err)
+
+					// Post twice
+					req := NewRequestWithBody(t, "POST", errataURL, bytes.NewReader(body)).
+						AddBasicAuth(user.Name)
+					MakeRequest(t, req, http.StatusOK)
+
+					req = NewRequestWithBody(t, "POST", errataURL, bytes.NewReader(body)).
+						AddBasicAuth(user.Name)
+					MakeRequest(t, req, http.StatusOK)
+
+					// Check updateinfo.xml.gz
+					url := groupURL + "/repodata"
+					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
+					resp := MakeRequest(t, req, http.StatusOK)
+
+					var result rpm_module.UpdateInfo
+					decodeGzipXML(t, resp, &result)
+
+					assert.Len(t, result.Updates, 1)
+					assert.Len(t, result.Updates[0].PkgList, 1)
+					assert.Len(t, result.Updates[0].PkgList[0].Packages, 2)
 				})
 			})
 

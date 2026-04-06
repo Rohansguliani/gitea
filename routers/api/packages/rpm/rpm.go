@@ -358,7 +358,35 @@ func UploadErrata(ctx *context.Context) {
 		found := false
 		for i, existing := range vm.Updates {
 			if existing.ID == u.ID {
-				vm.Updates[i].PkgList = append(vm.Updates[i].PkgList, u.PkgList...)
+				// Merge PkgList with deduplication
+				for _, newColl := range u.PkgList {
+					collFound := false
+					for j, existingColl := range existing.PkgList {
+						if existingColl.Short == newColl.Short {
+							// Merge packages
+							for _, newPkg := range newColl.Packages {
+								pkgFound := false
+								for _, existingPkg := range existingColl.Packages {
+									if existingPkg.Name == newPkg.Name &&
+										existingPkg.Version == newPkg.Version &&
+										existingPkg.Release == newPkg.Release &&
+										existingPkg.Arch == newPkg.Arch {
+										pkgFound = true
+										break
+									}
+								}
+								if !pkgFound {
+									vm.Updates[i].PkgList[j].Packages = append(vm.Updates[i].PkgList[j].Packages, newPkg)
+								}
+							}
+							collFound = true
+							break
+						}
+					}
+					if !collFound {
+						vm.Updates[i].PkgList = append(vm.Updates[i].PkgList, newColl)
+					}
+				}
 				vm.Updates[i].From = u.From
 				vm.Updates[i].Status = u.Status
 				vm.Updates[i].Type = u.Type
