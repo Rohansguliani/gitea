@@ -476,9 +476,26 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					// Check repomd.xml contains updateinfo
 					req = NewRequest(t, "GET", url+"/repomd.xml")
 					resp := MakeRequest(t, req, http.StatusOK)
-					bodyBytes, err := io.ReadAll(resp.Body)
+
+					type testRepoData struct {
+						Type string `xml:"type,attr"`
+					}
+					type testRepomd struct {
+						Data []*testRepoData `xml:"data"`
+					}
+
+					var repomd testRepomd
+					err = xml.NewDecoder(resp.Body).Decode(&repomd)
 					assert.NoError(t, err)
-					assert.Contains(t, string(bodyBytes), `<data type="updateinfo">`)
+
+					found := false
+					for _, d := range repomd.Data {
+						if d.Type == "updateinfo" {
+							found = true
+							break
+						}
+					}
+					assert.True(t, found, "updateinfo not found in repomd.xml")
 
 					// Now check updateinfo.xml.gz
 					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")

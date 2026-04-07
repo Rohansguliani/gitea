@@ -305,8 +305,8 @@ type DateAttr struct {
 
 type UpdateInfo struct {
 	XMLName xml.Name  `xml:"updates"`
-	Xmlns   string    `xml:"xmlns,attr" json:"xmlns"`
-	Updates []*Update `xml:"update" json:"updates"`
+	Xmlns   string    `xml:"xmlns,attr"`
+	Updates []*Update `xml:"update"`
 }
 
 type Update struct {
