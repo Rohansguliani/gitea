@@ -360,6 +360,25 @@ func UploadErrata(ctx *context.Context) {
 		if u == nil {
 			continue
 		}
+
+		// Sanitize to remove nil elements from JSON payload
+		var cleanPkgList []*rpm_module.Collection
+		for _, coll := range u.PkgList {
+			if coll == nil {
+				continue
+			}
+			var cleanPackages []*rpm_module.UpdatePackage
+			for _, pkg := range coll.Packages {
+				if pkg == nil {
+					continue
+				}
+				cleanPackages = append(cleanPackages, pkg)
+			}
+			coll.Packages = cleanPackages
+			cleanPkgList = append(cleanPkgList, coll)
+		}
+		u.PkgList = cleanPkgList
+
 		found := false
 		for i, existing := range vm.Updates {
 			if existing.ID == u.ID {

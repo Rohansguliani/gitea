@@ -490,6 +490,8 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					assert.Equal(t, "http://linux.duke.edu/metadata/updateinfo", result.Xmlns)
 					assert.Len(t, result.Updates, 1)
 					assert.Equal(t, "CVE-2023-1234", result.Updates[0].ID)
+					assert.NotEmpty(t, result.Updates[0].Issued.Date)
+					assert.NotEmpty(t, result.Updates[0].Updated.Date)
 				})
 
 				t.Run("InvalidJSON", func(t *testing.T) {
@@ -498,6 +500,67 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					req := NewRequestWithBody(t, "POST", errataURL, strings.NewReader("invalid json")).
 						AddBasicAuth(user.Name)
 					MakeRequest(t, req, http.StatusBadRequest)
+				})
+
+				t.Run("NullElementsInJSON", func(t *testing.T) {
+					defer tests.PrintCurrentTest(t)()
+
+					// Send a payload with null inside arrays
+					payload := `[
+						{
+							"id": "CVE-2023-5678",
+							"from": "security@example.com",
+							"status": "stable",
+							"type": "security",
+							"version": "1.0",
+							"title": "Test Null Elements",
+							"severity": "Important",
+							"description": "Test null elements",
+							"pkg_list": [
+								null,
+								{
+									"short": "el9",
+									"packages": [
+										null,
+										{
+											"arch": "x86_64",
+											"name": "gitea",
+											"release": "1",
+											"src": "gitea-1.0.0-1.src.rpm",
+											"version": "1.0.0",
+											"filename": "gitea-1.0.0-1.x86_64.rpm"
+										}
+									]
+								}
+							]
+						}
+					]`
+
+					req := NewRequestWithBody(t, "POST", errataURL, strings.NewReader(payload)).
+						AddBasicAuth(user.Name)
+					MakeRequest(t, req, http.StatusOK)
+
+					// Verify it was stored correctly (skipping nulls)
+					url := groupURL + "/repodata"
+					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
+					resp := MakeRequest(t, req, http.StatusOK)
+
+					var result rpm_module.UpdateInfo
+					decodeGzipXML(t, resp, &result)
+
+					// We need to find the new advisory CVE-2023-5678
+					var newAdvisory *rpm_module.Update
+					for _, u := range result.Updates {
+						if u.ID == "CVE-2023-5678" {
+							newAdvisory = u
+							break
+						}
+					}
+					assert.NotNil(t, newAdvisory)
+					assert.Len(t, newAdvisory.PkgList, 1)
+					assert.Equal(t, "el9", newAdvisory.PkgList[0].Short)
+					assert.Len(t, newAdvisory.PkgList[0].Packages, 1)
+					assert.Equal(t, "gitea", newAdvisory.PkgList[0].Packages[0].Name)
 				})
 
 				t.Run("PackageNotFound", func(t *testing.T) {
@@ -550,11 +613,17 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					var result rpm_module.UpdateInfo
 					decodeGzipXML(t, resp, &result)
 
-					assert.Len(t, result.Updates, 1)
-					assert.Equal(t, "CVE-2023-1234", result.Updates[0].ID)
+					var targetUpdate *rpm_module.Update
+					for _, u := range result.Updates {
+						if u.ID == "CVE-2023-1234" {
+							targetUpdate = u
+							break
+						}
+					}
+					assert.NotNil(t, targetUpdate)
 					// Verify that package lists are merged into the same collection
-					assert.Len(t, result.Updates[0].PkgList, 1)
-					assert.Len(t, result.Updates[0].PkgList[0].Packages, 2)
+					assert.Len(t, targetUpdate.PkgList, 1)
+					assert.Len(t, targetUpdate.PkgList[0].Packages, 2)
 					assert.Equal(t, "another-package", result.Updates[0].PkgList[0].Packages[1].Name)
 				})
 
@@ -595,13 +664,19 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					var result rpm_module.UpdateInfo
 					decodeGzipXML(t, resp, &result)
 
-					assert.Len(t, result.Updates, 1)
-					assert.Equal(t, "CVE-2023-1234", result.Updates[0].ID)
+					var targetUpdate *rpm_module.Update
+					for _, u := range result.Updates {
+						if u.ID == "CVE-2023-1234" {
+							targetUpdate = u
+							break
+						}
+					}
+					assert.NotNil(t, targetUpdate)
 					// Verify that we now have 2 collections
-					assert.Len(t, result.Updates[0].PkgList, 2)
+					assert.Len(t, targetUpdate.PkgList, 2)
 					// We need to be careful with order, map iteration is random
 					// Let's check both exist
-					shorts := []string{result.Updates[0].PkgList[0].Short, result.Updates[0].PkgList[1].Short}
+					shorts := []string{targetUpdate.PkgList[0].Short, targetUpdate.PkgList[1].Short}
 					assert.Contains(t, shorts, "el9")
 					assert.Contains(t, shorts, "el8")
 				})
@@ -630,11 +705,18 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					var result rpm_module.UpdateInfo
 					decodeGzipXML(t, resp, &result)
 
-					assert.Len(t, result.Updates, 1)
-					assert.Len(t, result.Updates[0].PkgList, 2)
+					var targetUpdate *rpm_module.Update
+					for _, u := range result.Updates {
+						if u.ID == "CVE-2023-1234" {
+							targetUpdate = u
+							break
+						}
+					}
+					assert.NotNil(t, targetUpdate)
+					assert.Len(t, targetUpdate.PkgList, 2)
 
 					var el9Coll *rpm_module.Collection
-					for _, coll := range result.Updates[0].PkgList {
+					for _, coll := range targetUpdate.PkgList {
 						if coll.Short == "el9" {
 							el9Coll = coll
 							break
