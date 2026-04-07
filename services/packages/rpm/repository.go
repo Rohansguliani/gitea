@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"slices"
 	"strings"
 	"time"
 
@@ -243,7 +244,7 @@ func BuildSpecificRepositoryFiles(ctx context.Context, ownerID int64, group stri
 
 	data := []*repoData{primary, filelists, other}
 
-	updates := findUpdateInfo(ctx, pv, pfs, cache)
+	updates := collectUpdateInfoUpdates(pfs, cache)
 	if len(updates) > 0 {
 		updateInfo, err := buildUpdateInfo(ctx, pv, updates, group)
 		if err != nil {
@@ -570,8 +571,7 @@ func buildOther(ctx context.Context, pv *packages_model.PackageVersion, pfs []*p
 	}, group)
 }
 
-// buildUpdateInfo builds the updateinfo.xml file
-func findUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs []*packages_model.PackageFile, c packageCache) (updates []*rpm_module.Update) {
+func collectUpdateInfoUpdates(pfs []*packages_model.PackageFile, c packageCache) (updates []*rpm_module.Update) {
 	seenVersions := make(map[int64]bool)
 	for _, pf := range pfs {
 		pd := c[pf]
@@ -583,6 +583,7 @@ func findUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs 
 	return updates
 }
 
+// buildUpdateInfo builds the updateinfo.xml file
 func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, updates []*rpm_module.Update, group string) (*repoData, error) {
 	// Group updates by ID to merge package lists
 	type updateKey struct {
@@ -607,7 +608,13 @@ func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, upd
 	for _, u := range updateMap {
 		mergedUpdates = append(mergedUpdates, u)
 	}
-
+	slices.SortFunc(mergedUpdates, func(a, b *rpm_module.Update) int {
+		c := strings.Compare(a.ID, b.ID)
+		if c == 0 {
+			c = strings.Compare(a.Title, b.Title)
+		}
+		return c
+	})
 	return addDataAsFileToRepo(ctx, pv, "updateinfo", &rpm_module.UpdateInfo{
 		Xmlns:   "http://linux.duke.edu/metadata/updateinfo",
 		Updates: mergedUpdates,
