@@ -558,6 +558,54 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					assert.Equal(t, "another-package", result.Updates[0].PkgList[0].Packages[1].Name)
 				})
 
+				t.Run("NewCollection", func(t *testing.T) {
+					defer tests.PrintCurrentTest(t)()
+
+					// Upload a third advisory with the same ID but a different collection
+					advisory3 := advisory
+					advisory3.PkgList = []*rpm_module.Collection{
+						{
+							Short: "el8",
+							Packages: []*rpm_module.UpdatePackage{
+								{
+									Arch:     packageArchitecture,
+									Name:     packageName,
+									Release:  "1",
+									Src:      "gitea-test-1.0.2-1.src.rpm",
+									Version:  "1.0.2",
+									Filename: fmt.Sprintf("%s-%s.%s.rpm", packageName, packageVersion, packageArchitecture),
+								},
+							},
+						},
+					}
+
+					updates := []*rpm_module.Update{&advisory3}
+					body, err := json.Marshal(updates)
+					assert.NoError(t, err)
+
+					req := NewRequestWithBody(t, "POST", errataURL, bytes.NewReader(body)).
+						AddBasicAuth(user.Name)
+					MakeRequest(t, req, http.StatusOK)
+
+					// Check updateinfo.xml.gz again
+					url := groupURL + "/repodata"
+					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
+					resp := MakeRequest(t, req, http.StatusOK)
+
+					var result rpm_module.UpdateInfo
+					decodeGzipXML(t, resp, &result)
+
+					assert.Len(t, result.Updates, 1)
+					assert.Equal(t, "CVE-2023-1234", result.Updates[0].ID)
+					// Verify that we now have 2 collections
+					assert.Len(t, result.Updates[0].PkgList, 2)
+					// We need to be careful with order, map iteration is random
+					// Let's check both exist
+					shorts := []string{result.Updates[0].PkgList[0].Short, result.Updates[0].PkgList[1].Short}
+					assert.Contains(t, shorts, "el9")
+					assert.Contains(t, shorts, "el8")
+				})
+
 				t.Run("Idempotency", func(t *testing.T) {
 					defer tests.PrintCurrentTest(t)()
 
@@ -583,8 +631,17 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					decodeGzipXML(t, resp, &result)
 
 					assert.Len(t, result.Updates, 1)
-					assert.Len(t, result.Updates[0].PkgList, 1)
-					assert.Len(t, result.Updates[0].PkgList[0].Packages, 2)
+					assert.Len(t, result.Updates[0].PkgList, 2)
+
+					var el9Coll *rpm_module.Collection
+					for _, coll := range result.Updates[0].PkgList {
+						if coll.Short == "el9" {
+							el9Coll = coll
+							break
+						}
+					}
+					assert.NotNil(t, el9Coll)
+					assert.Len(t, el9Coll.Packages, 2)
 				})
 			})
 

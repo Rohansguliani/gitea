@@ -627,6 +627,7 @@ func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, upd
 			// Create a shallow copy so we don't mutate the original cached pointer
 			uCopy := *u
 			// Deep copy PkgList and Collections to avoid mutating cache
+			// Note: References is shallow-copied, but safe as long as it remains immutable
 			uCopy.PkgList = make([]*rpm_module.Collection, len(u.PkgList))
 			for i, coll := range u.PkgList {
 				collCopy := *coll
@@ -642,11 +643,7 @@ func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, upd
 		mergedUpdates = append(mergedUpdates, u)
 	}
 	slices.SortFunc(mergedUpdates, func(a, b *rpm_module.Update) int {
-		c := strings.Compare(a.ID, b.ID)
-		if c == 0 {
-			c = strings.Compare(a.Title, b.Title)
-		}
-		return c
+		return strings.Compare(a.ID, b.ID)
 	})
 	return addDataAsFileToRepo(ctx, pv, "updateinfo", &rpm_module.UpdateInfo{
 		Xmlns:   "http://linux.duke.edu/metadata/updateinfo",

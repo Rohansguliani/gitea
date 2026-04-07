@@ -299,6 +299,10 @@ func getChangelogs(h *rpmutils.RpmHeader) []*Changelog {
 	return changelogs
 }
 
+type DateAttr struct {
+	Date string `xml:"date,attr" json:"date"`
+}
+
 type UpdateInfo struct {
 	XMLName xml.Name  `xml:"updates"`
 	Xmlns   string    `xml:"xmlns,attr" json:"xmlns"`
@@ -314,6 +318,8 @@ type Update struct {
 	Title       string        `xml:"title" json:"title"`
 	Severity    string        `xml:"severity" json:"severity"`
 	Description string        `xml:"description" json:"description"`
+	Issued      *DateAttr     `xml:"issued" json:"issued"`
+	Updated     *DateAttr     `xml:"updated" json:"updated"`
 	References  []*Reference  `xml:"references>reference" json:"references"`
 	PkgList     []*Collection `xml:"pkglist>collection" json:"pkg_list"`
 }

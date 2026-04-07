@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"code.gitea.io/gitea/models/db"
 	packages_model "code.gitea.io/gitea/models/packages"
@@ -354,17 +355,27 @@ func UploadErrata(ctx *context.Context) {
 		vm = &rpm_module.VersionMetadata{}
 	}
 
+	now := time.Now().Format("2006-01-02 15:04:05")
 	for _, u := range updates {
+		if u == nil {
+			continue
+		}
 		found := false
 		for i, existing := range vm.Updates {
 			if existing.ID == u.ID {
 				// Merge PkgList with deduplication
 				for _, newColl := range u.PkgList {
+					if newColl == nil {
+						continue
+					}
 					collFound := false
 					for j, existingColl := range existing.PkgList {
 						if existingColl.Short == newColl.Short {
 							// Merge packages
 							for _, newPkg := range newColl.Packages {
+								if newPkg == nil {
+									continue
+								}
 								pkgFound := false
 								for _, existingPkg := range existingColl.Packages {
 									if existingPkg.Name == newPkg.Name &&
@@ -395,11 +406,18 @@ func UploadErrata(ctx *context.Context) {
 				vm.Updates[i].Severity = u.Severity
 				vm.Updates[i].Description = u.Description
 				vm.Updates[i].References = u.References
+				vm.Updates[i].Updated = &rpm_module.DateAttr{Date: now}
 				found = true
 				break
 			}
 		}
 		if !found {
+			if u.Issued == nil {
+				u.Issued = &rpm_module.DateAttr{Date: now}
+			}
+			if u.Updated == nil {
+				u.Updated = &rpm_module.DateAttr{Date: now}
+			}
 			vm.Updates = append(vm.Updates, u)
 		}
 	}
