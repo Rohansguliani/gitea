@@ -300,41 +300,41 @@ func getChangelogs(h *rpmutils.RpmHeader) []*Changelog {
 }
 
 type UpdateInfo struct {
-	XMLName xml.Name  `xml:"updateinfo"`
-	Xmlns   string    `xml:"xmlns,attr"`
-	Updates []*Update `xml:"update"`
+	XMLName xml.Name  `xml:"updates"`
+	Xmlns   string    `xml:"xmlns,attr" json:"xmlns"`
+	Updates []*Update `xml:"update" json:"updates"`
 }
 
 type Update struct {
-	From        string        `xml:"from,attr"`
-	Status      string        `xml:"status,attr"`
-	Type        string        `xml:"type,attr"`
-	Version     string        `xml:"version,attr"`
-	ID          string        `xml:"id"`
-	Title       string        `xml:"title"`
-	Severity    string        `xml:"severity"`
-	Description string        `xml:"description"`
-	References  []*Reference  `xml:"references>reference"`
-	PkgList     []*Collection `xml:"pkglist>collection"`
+	From        string        `xml:"from,attr" json:"from"`
+	Status      string        `xml:"status,attr" json:"status"`
+	Type        string        `xml:"type,attr" json:"type"`
+	Version     string        `xml:"version,attr" json:"version"`
+	ID          string        `xml:"id" json:"id"`
+	Title       string        `xml:"title" json:"title"`
+	Severity    string        `xml:"severity" json:"severity"`
+	Description string        `xml:"description" json:"description"`
+	References  []*Reference  `xml:"references>reference" json:"references"`
+	PkgList     []*Collection `xml:"pkglist>collection" json:"pkg_list"`
 }
 
 type Reference struct {
-	Href  string `xml:"href,attr"`
-	ID    string `xml:"id,attr"`
-	Title string `xml:"title,attr"`
-	Type  string `xml:"type,attr"`
+	Href  string `xml:"href,attr" json:"href"`
+	ID    string `xml:"id,attr" json:"id"`
+	Title string `xml:"title,attr" json:"title"`
+	Type  string `xml:"type,attr" json:"type"`
 }
 
 type Collection struct {
-	Short    string           `xml:"short,attr"`
-	Packages []*UpdatePackage `xml:"package"`
+	Short    string           `xml:"short,attr" json:"short"`
+	Packages []*UpdatePackage `xml:"package" json:"packages"`
 }
 
 type UpdatePackage struct {
-	Arch     string `xml:"arch,attr"`
-	Name     string `xml:"name,attr"`
-	Release  string `xml:"release,attr"`
-	Src      string `xml:"src,attr"`
-	Version  string `xml:"version,attr"`
-	Filename string `xml:"filename"`
+	Arch     string `xml:"arch,attr" json:"arch"`
+	Name     string `xml:"name,attr" json:"name"`
+	Release  string `xml:"release,attr" json:"release"`
+	Src      string `xml:"src,attr" json:"src"`
+	Version  string `xml:"version,attr" json:"version"`
+	Filename string `xml:"filename" json:"filename"`
 }

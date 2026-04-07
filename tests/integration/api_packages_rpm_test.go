@@ -471,10 +471,18 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 						AddBasicAuth(user.Name)
 					MakeRequest(t, req, http.StatusOK)
 
-					// Now check updateinfo.xml.gz
 					url := groupURL + "/repodata"
-					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
+
+					// Check repomd.xml contains updateinfo
+					req = NewRequest(t, "GET", url+"/repomd.xml")
 					resp := MakeRequest(t, req, http.StatusOK)
+					bodyBytes, err := io.ReadAll(resp.Body)
+					assert.NoError(t, err)
+					assert.Contains(t, string(bodyBytes), `<data type="updateinfo">`)
+
+					// Now check updateinfo.xml.gz
+					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
+					resp = MakeRequest(t, req, http.StatusOK)
 
 					var result rpm_module.UpdateInfo
 					decodeGzipXML(t, resp, &result)

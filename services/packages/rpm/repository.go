@@ -594,12 +594,45 @@ func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, upd
 	for _, u := range updates {
 		key := updateKey{ID: u.ID}
 		if existing, ok := updateMap[key]; ok {
-			existing.PkgList = append(existing.PkgList, u.PkgList...)
+			for _, newColl := range u.PkgList {
+				collFound := false
+				for j, existingColl := range existing.PkgList {
+					if existingColl.Short == newColl.Short {
+						for _, newPkg := range newColl.Packages {
+							pkgFound := false
+							for _, existingPkg := range existingColl.Packages {
+								if existingPkg.Name == newPkg.Name &&
+									existingPkg.Version == newPkg.Version &&
+									existingPkg.Release == newPkg.Release &&
+									existingPkg.Arch == newPkg.Arch {
+									pkgFound = true
+									break
+								}
+							}
+							if !pkgFound {
+								existing.PkgList[j].Packages = append(existing.PkgList[j].Packages, newPkg)
+							}
+						}
+						collFound = true
+						break
+					}
+				}
+				if !collFound {
+					collCopy := *newColl
+					collCopy.Packages = append([]*rpm_module.UpdatePackage(nil), newColl.Packages...)
+					existing.PkgList = append(existing.PkgList, &collCopy)
+				}
+			}
 		} else {
 			// Create a shallow copy so we don't mutate the original cached pointer
 			uCopy := *u
-			// We also need to copy the slice so append doesn't overwrite the original backing array
-			uCopy.PkgList = append([]*rpm_module.Collection(nil), u.PkgList...)
+			// Deep copy PkgList and Collections to avoid mutating cache
+			uCopy.PkgList = make([]*rpm_module.Collection, len(u.PkgList))
+			for i, coll := range u.PkgList {
+				collCopy := *coll
+				collCopy.Packages = append([]*rpm_module.UpdatePackage(nil), coll.Packages...)
+				uCopy.PkgList[i] = &collCopy
+			}
 			updateMap[key] = &uCopy
 		}
 	}
