@@ -240,18 +240,16 @@ func BuildSpecificRepositoryFiles(ctx context.Context, ownerID int64, group stri
 	if err != nil {
 		return err
 	}
-	updateinfo, err := buildUpdateInfo(ctx, pv, pfs, cache, group)
-	if err != nil {
-		return err
-	}
 
-	data := []*repoData{
-		primary,
-		filelists,
-		other,
-	}
-	if updateinfo != nil {
-		data = append(data, updateinfo)
+	data := []*repoData{primary, filelists, other}
+
+	updates := findUpdateInfo(ctx, pv, pfs, cache)
+	if len(updates) > 0 {
+		updateInfo, err := buildUpdateInfo(ctx, pv, updates, group)
+		if err != nil {
+			return err
+		}
+		data = append(data, updateInfo)
 	}
 
 	return buildRepomd(
@@ -573,10 +571,8 @@ func buildOther(ctx context.Context, pv *packages_model.PackageVersion, pfs []*p
 }
 
 // buildUpdateInfo builds the updateinfo.xml file
-func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs []*packages_model.PackageFile, c packageCache, group string) (*repoData, error) {
-	var updates []*rpm_module.Update
+func findUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs []*packages_model.PackageFile, c packageCache) (updates []*rpm_module.Update) {
 	seenVersions := make(map[int64]bool)
-
 	for _, pf := range pfs {
 		pd := c[pf]
 		if pd.Version != nil && !seenVersions[pd.Version.ID] && pd.VersionMetadata.Updates != nil {
@@ -584,11 +580,10 @@ func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, pfs
 			seenVersions[pd.Version.ID] = true
 		}
 	}
+	return updates
+}
 
-	if len(updates) == 0 {
-		return nil, nil //nolint:nilnil
-	}
-
+func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, updates []*rpm_module.Update, group string) (*repoData, error) {
 	// Group updates by ID to merge package lists
 	type updateKey struct {
 		ID string
