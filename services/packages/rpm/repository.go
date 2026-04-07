@@ -645,7 +645,14 @@ func buildUpdateInfo(ctx context.Context, pv *packages_model.PackageVersion, upd
 	slices.SortFunc(mergedUpdates, func(a, b *rpm_module.Update) int {
 		return strings.Compare(a.ID, b.ID)
 	})
-	return addDataAsFileToRepo(ctx, pv, "updateinfo", &rpm_module.UpdateInfo{
+
+	type updateInfo struct {
+		XMLName xml.Name             `xml:"updates"`
+		Xmlns   string               `xml:"xmlns,attr"`
+		Updates []*rpm_module.Update `xml:"update"`
+	}
+
+	return addDataAsFileToRepo(ctx, pv, "updateinfo", &updateInfo{
 		Xmlns:   "http://linux.duke.edu/metadata/updateinfo",
 		Updates: mergedUpdates,
 	}, group)

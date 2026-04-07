@@ -4,7 +4,6 @@
 package rpm
 
 import (
-	"encoding/xml"
 	"fmt"
 	"io"
 	"strings"
@@ -301,12 +300,6 @@ func getChangelogs(h *rpmutils.RpmHeader) []*Changelog {
 
 type DateAttr struct {
 	Date string `xml:"date,attr" json:"date"`
-}
-
-type UpdateInfo struct {
-	XMLName xml.Name  `xml:"updates"`
-	Xmlns   string    `xml:"xmlns,attr"`
-	Updates []*Update `xml:"update"`
 }
 
 type Update struct {

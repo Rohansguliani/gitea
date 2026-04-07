@@ -12,6 +12,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -423,6 +424,11 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 
 			t.Run("Errata", func(t *testing.T) {
 				defer tests.PrintCurrentTest(t)()
+				type updateInfo struct {
+					XMLName xml.Name             `xml:"updates"`
+					Xmlns   string               `xml:"xmlns,attr"`
+					Updates []*rpm_module.Update `xml:"update"`
+				}
 
 				errataURL := fmt.Sprintf("%s/package/%s/%s/errata", groupURL, packageName, packageVersion)
 
@@ -480,28 +486,22 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					type testRepoData struct {
 						Type string `xml:"type,attr"`
 					}
-					type testRepomd struct {
+					var repomd struct {
 						Data []*testRepoData `xml:"data"`
 					}
-
-					var repomd testRepomd
 					err = xml.NewDecoder(resp.Body).Decode(&repomd)
-					assert.NoError(t, err)
+					require.NoError(t, err)
 
-					found := false
-					for _, d := range repomd.Data {
-						if d.Type == "updateinfo" {
-							found = true
-							break
-						}
-					}
+					found := slices.IndexFunc(repomd.Data, func(s *testRepoData) bool {
+						return s.Type == "updateinfo"
+					}) >= 0
 					assert.True(t, found, "updateinfo not found in repomd.xml")
 
 					// Now check updateinfo.xml.gz
 					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
 					resp = MakeRequest(t, req, http.StatusOK)
 
-					var result rpm_module.UpdateInfo
+					var result updateInfo
 					decodeGzipXML(t, resp, &result)
 
 					assert.Equal(t, "http://linux.duke.edu/metadata/updateinfo", result.Xmlns)
@@ -562,7 +562,7 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
 					resp := MakeRequest(t, req, http.StatusOK)
 
-					var result rpm_module.UpdateInfo
+					var result updateInfo
 					decodeGzipXML(t, resp, &result)
 
 					// We need to find the new advisory CVE-2023-5678
@@ -627,7 +627,7 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
 					resp := MakeRequest(t, req, http.StatusOK)
 
-					var result rpm_module.UpdateInfo
+					var result updateInfo
 					decodeGzipXML(t, resp, &result)
 
 					var targetUpdate *rpm_module.Update
@@ -678,7 +678,7 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
 					resp := MakeRequest(t, req, http.StatusOK)
 
-					var result rpm_module.UpdateInfo
+					var result updateInfo
 					decodeGzipXML(t, resp, &result)
 
 					var targetUpdate *rpm_module.Update
@@ -719,7 +719,7 @@ gpgkey=%sapi/packages/%s/rpm/repository.key`,
 					req = NewRequest(t, "GET", url+"/updateinfo.xml.gz")
 					resp := MakeRequest(t, req, http.StatusOK)
 
-					var result rpm_module.UpdateInfo
+					var result updateInfo
 					decodeGzipXML(t, resp, &result)
 
 					var targetUpdate *rpm_module.Update
